@@ -44,29 +44,32 @@
         android:id="@+id/linearLayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
+        android:gravity="right"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
 
         <Button
             android:id="@+id/zoomin"
-            android:layout_width="110dp"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="20dp"
-            android:text="Zoom In" />
-
-        <Button
-            android:id="@+id/btn_current"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="currentlocation" />
+            android:text="Zoom In" />
 
         <Button
             android:id="@+id/zoomout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Zoom Out" />
+        <Button
+            android:id="@+id/btn_current"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="currentlocation" />
+        <Button
+            android:id="@+id/btn_findpath"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Find path" />
 
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -7,10 +7,13 @@ import androidx.fragment.app.Fragment;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Debug;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -30,9 +33,21 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.internal.ICameraUpdateFactoryDelegate;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.maps.DirectionsApi;
+import com.google.maps.DirectionsApiRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.PendingResult;
+import com.google.maps.android.PolyUtil;
+import com.google.maps.internal.PolylineEncoding;
+import com.google.maps.model.DirectionsLeg;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.DirectionsRoute;
+import com.google.maps.model.TravelMode;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionDeniedResponse;
@@ -49,10 +64,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     Spinner sp_spinner;
     SupportMapFragment supportMapFragment;
     FusedLocationProviderClient fusedLocationProviderClient;
-    Button btnZoomIn,btnZoomOut, btnCurrent;
+    Button btnZoomIn,btnZoomOut, btnCurrent, btnFindpath;
 
     SearchView svLocation;
 
+    private Marker currentMarker;
+    private Marker recentMarker;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,7 +100,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         permissionToken.continuePermissionRequest();
                     }
                 }).check();
-
     }
 
     private void getCurrentLocation() {
@@ -101,23 +117,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         task.addOnSuccessListener(new OnSuccessListener<Location>() {
             @Override
             public void onSuccess(Location location) {
-                supportMapFragment.getMapAsync(new OnMapReadyCallback() {
-                    @Override
-                    public void onMapReady(@NonNull GoogleMap googleMap) {
-                        if (location != null) {
-                            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                            MarkerOptions markerOptions = new MarkerOptions().position(latLng).title("Current location");
-                            googleMap.addMarker(markerOptions);
-                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
-                        } else {
-                            Toast.makeText(MainActivity.this, "Please on your location app permisstions", Toast.LENGTH_SHORT).show();
-                            LatLng australia = new LatLng(-25.2744, 133.7751);
-                            MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Current location");
-                            googleMap.addMarker(markerOptions);
-                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(australia, 15));
-                        }
-                    }
-                });
+                if (location != null) {
+                    LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                    MarkerOptions markerOptions = new MarkerOptions().position(latLng).title("Current location");
+                    currentMarker = gMap.addMarker(markerOptions);
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                } else {
+                    Toast.makeText(MainActivity.this, "Please on your location app permisstions", Toast.LENGTH_SHORT).show();
+                    LatLng australia = new LatLng(-25.2744, 133.7751);
+                    MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Current location");
+                    gMap.addMarker(markerOptions);
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(australia, 15));
+                }
             }
         });
     }
@@ -125,6 +136,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnZoomIn = (Button) findViewById(R.id.zoomin);
         btnZoomOut =(Button) findViewById(R.id.zoomout);
         btnCurrent = (Button) findViewById(R.id.btn_current);
+        btnFindpath =(Button) findViewById(R.id.btn_findpath);
         svLocation = findViewById(R.id.svLocation);
         sp_spinner = findViewById(R.id.spinner);
         ArrayList<String> ds_StyleMap = new ArrayList<>();
@@ -199,7 +211,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Address address = addressList.get(0);
 
                     LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
-                    gMap.addMarker(new MarkerOptions().position(latLng).title(location));
+                    recentMarker = gMap.addMarker(new MarkerOptions().position(latLng).title(location));
                     gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
 
                 }
@@ -211,6 +223,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return false;
             }
         });
+
+        btnFindpath.setOnClickListener(v -> {
+//            LatLng originLatLng = new LatLng(10.8298295, 106.7617899);
+//            LatLng destinationLatLng = new LatLng(10.829449186788173, 106.76849484443666);
+            if (currentMarker != null && recentMarker != null) {
+                LatLng originLatLng = currentMarker.getPosition();
+                LatLng destinationLatLng = recentMarker.getPosition();
+                if (originLatLng != null && destinationLatLng != null)
+                    drawPath(originLatLng, destinationLatLng);
+            }
+
+        });
+    }
+
+    private void drawPath(LatLng originLatLng, LatLng destinationLatLng) {
+        PolylineOptions polylineOptions = new PolylineOptions();
+        polylineOptions.add(originLatLng);
+        polylineOptions.add(destinationLatLng);
+        polylineOptions.color(Color.BLUE);
+        polylineOptions.width(5f);
+        gMap.addPolyline(polylineOptions);
     }
 
     @Override
