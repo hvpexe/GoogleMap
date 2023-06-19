@@ -3,7 +3,6 @@ package com.example.googlemap;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -12,42 +11,34 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
-import android.os.Debug;
-import android.util.Log;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.SearchView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.directions.route.AbstractRouting;
+import com.directions.route.Route;
+import com.directions.route.RouteException;
+import com.directions.route.Routing;
+import com.directions.route.RoutingListener;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.internal.ICameraUpdateFactoryDelegate;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.maps.DirectionsApi;
-import com.google.maps.DirectionsApiRequest;
-import com.google.maps.GeoApiContext;
-import com.google.maps.PendingResult;
-import com.google.maps.android.PolyUtil;
-import com.google.maps.internal.PolylineEncoding;
-import com.google.maps.model.DirectionsLeg;
-import com.google.maps.model.DirectionsResult;
-import com.google.maps.model.DirectionsRoute;
-import com.google.maps.model.TravelMode;
+import com.google.android.material.snackbar.Snackbar;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionDeniedResponse;
@@ -59,26 +50,29 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, RoutingListener {
     GoogleMap gMap;
     Spinner sp_spinner;
     SupportMapFragment supportMapFragment;
     FusedLocationProviderClient fusedLocationProviderClient;
-    Button btnZoomIn,btnZoomOut, btnCurrent, btnFindpath;
-
+    Button btnZoomIn, btnZoomOut, btnCurrent, btnFindpath;
     SearchView svLocation;
 
     private Marker currentMarker;
     private Marker recentMarker;
+    private List<Polyline> polylines = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // set up map
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         supportMapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.google_map);
         supportMapFragment.getMapAsync(this);
 
+        // mapping and add event
         addControls();
         addEvents();
 
@@ -102,72 +96,33 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }).check();
     }
 
-    private void getCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        Task<Location> task = fusedLocationProviderClient.getLastLocation();
-        task.addOnSuccessListener(new OnSuccessListener<Location>() {
-            @Override
-            public void onSuccess(Location location) {
-                if (location != null) {
-                    LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                    MarkerOptions markerOptions = new MarkerOptions().position(latLng).title("Current location");
-                    currentMarker = gMap.addMarker(markerOptions);
-                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
-                } else {
-                    Toast.makeText(MainActivity.this, "Please on your location app permisstions", Toast.LENGTH_SHORT).show();
-                    LatLng australia = new LatLng(-25.2744, 133.7751);
-                    MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Current location");
-                    gMap.addMarker(markerOptions);
-                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(australia, 15));
-                }
-            }
-        });
-    }
     private void addControls() {
         btnZoomIn = (Button) findViewById(R.id.zoomin);
-        btnZoomOut =(Button) findViewById(R.id.zoomout);
+        btnZoomOut = (Button) findViewById(R.id.zoomout);
         btnCurrent = (Button) findViewById(R.id.btn_current);
-        btnFindpath =(Button) findViewById(R.id.btn_findpath);
+        btnFindpath = (Button) findViewById(R.id.btn_findpath);
         svLocation = findViewById(R.id.svLocation);
         sp_spinner = findViewById(R.id.spinner);
         ArrayList<String> ds_StyleMap = new ArrayList<>();
-        ds_StyleMap.add("Style 1");
-        ds_StyleMap.add("Style 2");
-        ds_StyleMap.add("Style 3");
-        ds_StyleMap.add("Style 4");
+        ds_StyleMap.add("MAP_TYPE_NORMAL");
+        ds_StyleMap.add("MAP_TYPE_SATELLITE");
+        ds_StyleMap.add("MAP_TYPE_HYBRID");
+        ds_StyleMap.add("MAP_TYPE_TERRAIN");
 
         ArrayAdapter arrayAdapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, ds_StyleMap);
         sp_spinner.setAdapter(arrayAdapter);
     }
 
     private void addEvents() {
-        btnZoomIn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                gMap.moveCamera(CameraUpdateFactory.zoomIn());
-            }
+        btnZoomIn.setOnClickListener(v -> {
+            gMap.moveCamera(CameraUpdateFactory.zoomIn());
         });
-        btnZoomOut.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                gMap.moveCamera(CameraUpdateFactory.zoomOut());
-            }
+        btnZoomOut.setOnClickListener(v -> {
+            gMap.moveCamera(CameraUpdateFactory.zoomOut());
         });
 
-        btnCurrent.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                getCurrentLocation();
-            }
+        btnCurrent.setOnClickListener(v -> {
+            getCurrentLocation();
         });
 
         sp_spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -201,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 String location = svLocation.getQuery().toString();
                 List<Address> addressList = null;
 
-                if (location != null || !location.equals("")) {
+                if (!location.equals("")) {
                     Geocoder geocoder = new Geocoder(MainActivity.this);
                     try {
                         addressList = geocoder.getFromLocationName(location, 1);
@@ -225,15 +180,42 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
 
         btnFindpath.setOnClickListener(v -> {
-//            LatLng originLatLng = new LatLng(10.8298295, 106.7617899);
-//            LatLng destinationLatLng = new LatLng(10.829449186788173, 106.76849484443666);
             if (currentMarker != null && recentMarker != null) {
                 LatLng originLatLng = currentMarker.getPosition();
                 LatLng destinationLatLng = recentMarker.getPosition();
-                if (originLatLng != null && destinationLatLng != null)
-                    drawPath(originLatLng, destinationLatLng);
+                findRoutes(originLatLng, destinationLatLng);
             }
+        });
+    }
 
+    private void getCurrentLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        Task<Location> task = fusedLocationProviderClient.getLastLocation();
+        task.addOnSuccessListener(new OnSuccessListener<Location>() {
+            @Override
+            public void onSuccess(Location location) {
+                if (location != null) {
+                    LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                    MarkerOptions markerOptions = new MarkerOptions().position(latLng).title("Current location");
+                    currentMarker = gMap.addMarker(markerOptions);
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                } else {
+                    Toast.makeText(MainActivity.this, "Please on your location app permissions", Toast.LENGTH_SHORT).show();
+                    LatLng australia = new LatLng(-25.2744, 133.7751);
+                    MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Current location");
+                    gMap.addMarker(markerOptions);
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(australia, 15));
+                }
+            }
         });
     }
 
@@ -246,6 +228,89 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         gMap.addPolyline(polylineOptions);
     }
 
+    // function to find Routes.
+    private void findRoutes(LatLng Start, LatLng End) {
+        if (Start == null || End == null) {
+            Toast.makeText(MainActivity.this, "Unable to get location", Toast.LENGTH_LONG).show();
+        } else {
+
+            Routing routing = new Routing.Builder()
+                    .travelMode(AbstractRouting.TravelMode.DRIVING)
+                    .withListener(this)
+                    .alternativeRoutes(true)
+                    .waypoints(Start, End)
+                    .key("AIzaSyCSWpqDug0SglJ3I_8GZ2sy8xIjQ5cWdzQ")  //also define your api key here.
+                    .build();
+            routing.execute();
+        }
+    }
+
+    //Routing call back functions.
+    @Override
+    public void onRoutingFailure(RouteException e) {
+        View parentLayout = findViewById(android.R.id.content);
+        Snackbar snackbar = Snackbar.make(parentLayout, e.toString(), Snackbar.LENGTH_LONG);
+        snackbar.show();
+//        Findroutes(start,end);
+    }
+
+    @Override
+    public void onRoutingStart() {
+        Toast.makeText(MainActivity.this, "Finding Route...", Toast.LENGTH_LONG).show();
+    }
+
+    //If Route finding success..
+    @Override
+    public void onRoutingSuccess(ArrayList<Route> route, int shortestRouteIndex) {
+
+        if (polylines != null) {
+            polylines.clear();
+            gMap.clear();
+
+        }
+        PolylineOptions polyOptions = new PolylineOptions();
+        LatLng polylineStartLatLng = null;
+        LatLng polylineEndLatLng = null;
+
+
+        polylines = new ArrayList<>();
+        //add route(s) to the map using polyline
+        for (int i = 0; i < route.size(); i++) {
+
+            if (i == shortestRouteIndex) {
+                polyOptions.color(Color.BLUE);
+                polyOptions.width(7);
+                polyOptions.addAll(route.get(shortestRouteIndex).getPoints());
+                Polyline polyline = gMap.addPolyline(polyOptions);
+                polylineStartLatLng = polyline.getPoints().get(0);
+                int k = polyline.getPoints().size();
+                polylineEndLatLng = polyline.getPoints().get(k - 1);
+                polylines.add(polyline);
+
+            } else {
+
+            }
+
+        }
+
+        //Add Marker on route starting position
+        MarkerOptions startMarker = new MarkerOptions();
+        startMarker.position(polylineStartLatLng);
+        startMarker.title(currentMarker.getTitle());
+        gMap.addMarker(startMarker);
+
+        //Add Marker on route ending position
+        MarkerOptions endMarker = new MarkerOptions();
+        endMarker.position(polylineEndLatLng);
+        endMarker.title(recentMarker.getTitle());
+        gMap.addMarker(endMarker);
+    }
+
+    @Override
+    public void onRoutingCancelled() {
+        findRoutes(currentMarker.getPosition(), recentMarker.getPosition());
+    }
+
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         gMap = googleMap;
@@ -255,4 +320,5 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onPointerCaptureChanged(boolean hasCapture) {
         super.onPointerCaptureChanged(hasCapture);
     }
+
 }
