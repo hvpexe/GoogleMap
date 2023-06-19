@@ -7,6 +7,8 @@ import androidx.fragment.app.Fragment;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
@@ -16,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.SearchView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -37,15 +40,18 @@ import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     GoogleMap gMap;
     Spinner sp_spinner;
     SupportMapFragment supportMapFragment;
     FusedLocationProviderClient fusedLocationProviderClient;
-    Button btnZoomIn,btnZoomOut,btnSearch,btnCurrent;
-    EditText search;
+    Button btnZoomIn,btnZoomOut, btnCurrent;
+
+    SearchView svLocation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,9 +125,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnZoomIn = (Button) findViewById(R.id.zoomin);
         btnZoomOut =(Button) findViewById(R.id.zoomout);
         btnCurrent = (Button) findViewById(R.id.btn_current);
-        btnSearch = (Button) findViewById(R.id.btnSearch);
-        search = (EditText) findViewById(R.id.etSearch);
-
+        svLocation = findViewById(R.id.svLocation);
         sp_spinner = findViewById(R.id.spinner);
         ArrayList<String> ds_StyleMap = new ArrayList<>();
         ds_StyleMap.add("Style 1");
@@ -176,6 +180,35 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+            }
+        });
+
+        svLocation.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                String location = svLocation.getQuery().toString();
+                List<Address> addressList = null;
+
+                if (location != null || !location.equals("")) {
+                    Geocoder geocoder = new Geocoder(MainActivity.this);
+                    try {
+                        addressList = geocoder.getFromLocationName(location, 1);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                    Address address = addressList.get(0);
+
+                    LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+                    gMap.addMarker(new MarkerOptions().position(latLng).title(location));
+                    gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+
+                }
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
             }
         });
     }

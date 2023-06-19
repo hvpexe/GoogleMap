@@ -15,34 +15,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/search"
-        android:layout_width="wrap_content"
+    <SearchView
+        android:id="@+id/svLocation"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="30dp"
+        android:layout_margin="5dp"
+        android:background="@drawable/common_google_signin_btn_text_light"
+        android:elevation="5dp"
+        android:iconifiedByDefault="false"
+        android:queryHint="Search..."
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/spinner"
-    >
-
-        <EditText
-            android:id="@+id/etSearch"
-            android:layout_width="250dp"
-            android:layout_height="wrap_content"
-            android:hint="Input name of a location"
-            app:layout_constraintEnd_toStartOf="@+id/btnSearch"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <Button
-            android:id="@+id/btnSearch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Search"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/etSearch" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        app:layout_constraintTop_toBottomOf="@+id/spinner" />
 
     <fragment
         android:id="@+id/google_map"
