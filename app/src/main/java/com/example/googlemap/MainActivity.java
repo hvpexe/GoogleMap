@@ -14,6 +14,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -42,6 +44,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     Spinner sp_spinner;
     SupportMapFragment supportMapFragment;
     FusedLocationProviderClient fusedLocationProviderClient;
+    Button btnZoomIn,btnZoomOut,btnSearch,btnCurrent;
+    EditText search;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,12 +56,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         supportMapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.google_map);
         supportMapFragment.getMapAsync(this);
 
-
-
         addControls();
         addEvents();
-
-
 
         fusedLocationProviderClient = (FusedLocationProviderClient) LocationServices.getFusedLocationProviderClient(this);
 
@@ -115,6 +116,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
     private void addControls() {
+        btnZoomIn = (Button) findViewById(R.id.zoomin);
+        btnZoomOut =(Button) findViewById(R.id.zoomout);
+        btnCurrent = (Button) findViewById(R.id.btn_current);
+        btnSearch = (Button) findViewById(R.id.btnSearch);
+        search = (EditText) findViewById(R.id.etSearch);
+
         sp_spinner = findViewById(R.id.spinner);
         ArrayList<String> ds_StyleMap = new ArrayList<>();
         ds_StyleMap.add("Style 1");
@@ -127,6 +134,26 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void addEvents() {
+        btnZoomIn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                gMap.moveCamera(CameraUpdateFactory.zoomIn());
+            }
+        });
+        btnZoomOut.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                gMap.moveCamera(CameraUpdateFactory.zoomOut());
+            }
+        });
+
+        btnCurrent.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getCurrentLocation();
+            }
+        });
+
         sp_spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -148,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
+                gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
             }
         });
     }
