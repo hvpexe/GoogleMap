@@ -76,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         addControls();
         addEvents();
 
+        // truy cap thong tin toa do cua thiet bi
         fusedLocationProviderClient = (FusedLocationProviderClient) LocationServices.getFusedLocationProviderClient(this);
 
         Dexter.withContext(getApplicationContext()).withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -184,6 +185,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 LatLng originLatLng = currentMarker.getPosition();
                 LatLng destinationLatLng = recentMarker.getPosition();
                 findRoutes(originLatLng, destinationLatLng);
+//                drawPath(originLatLng, destinationLatLng);
             }
         });
     }
@@ -209,9 +211,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     currentMarker = gMap.addMarker(markerOptions);
                     gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
                 } else {
-                    Toast.makeText(MainActivity.this, "Please on your location app permissions", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Please turn on your location app permissions", Toast.LENGTH_SHORT).show();
                     LatLng australia = new LatLng(-25.2744, 133.7751);
-                    MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Current location");
+                    MarkerOptions markerOptions = new MarkerOptions().position(australia).title("Default location");
                     gMap.addMarker(markerOptions);
                     gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(australia, 15));
                 }
@@ -223,6 +225,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         PolylineOptions polylineOptions = new PolylineOptions();
         polylineOptions.add(originLatLng);
         polylineOptions.add(destinationLatLng);
+//        polylineOptions.add(new LatLng(10.861882667029716, 106.8025588989258));
         polylineOptions.color(Color.BLUE);
         polylineOptions.width(5f);
         gMap.addPolyline(polylineOptions);
@@ -286,9 +289,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 int k = polyline.getPoints().size();
                 polylineEndLatLng = polyline.getPoints().get(k - 1);
                 polylines.add(polyline);
-
-            } else {
-
             }
 
         }
